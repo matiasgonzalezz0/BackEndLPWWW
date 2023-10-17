@@ -1,72 +1,39 @@
 const express = require('express');
 const mongoose = require('mongoose');
 require('dotenv').config();
+const { json } = require('body-parser');
 
-const { ApolloServer, gql } = require('apollo-server-express');
+const { ApolloServer } = require('@apollo/server');
+const { expressMiddleware } = require('@apollo/server/express4');
 
-const Persona = require('./models/persona');
 const cors = require('cors');
+
+const { typeDefsPersona, QueryPersona, MutationPersona } = require('./schema/persona');
 
 mongoose.connect(process.env.MONGODB_CONN_STRING, {
 	useNewUrlParser: true,
 	useUnifiedTopology: true,
 });
 
-const typeDefs = gql`
-	type Persona {
-		id: ID!
-		rut: Int!
-		nombre: String!
-	}
-	input PersonaInput {
-		rut: Int!
-		nombre: String!
-	}
-	type Alert {
-		message: String
-	}
-	type Query {
-		getPersonas(page: Int, limit: Int = 1): [Persona]
-		getPersona(id: Int): Persona
-	}
-	type Mutation {
-		addPersona(input: PersonaInput): Persona
-		updPersona(id: Int, input: PersonaInput): Persona
-		delPersona(id: Int): Alert
-	}
-`;
+let typeDefs = ``;
+
+typeDefs += typeDefsPersona;
+
+let Query = {};
+
+Query = { ...Query, ...QueryPersona };
+
+let Mutation = {};
+
+Mutation = { ...Mutation, ...MutationPersona };
 
 const resolvers = {
-	Query: {
-		async getPersonas(obj, { page, limit }) {
-			const personas = await Persona.find();
-			return personas;
-		},
-		async getPersona(obj, { id }) {
-			const persona = await Persona.findById(id);
-			return persona;
-		},
-	},
-	Mutation: {
-		async addPersona(obj, { input }) {
-			const persona = new Persona(input);
-			persona.save();
-			return persona;
-		},
-		async updPersona(obj, { id, input }) {
-			const persona = await Persona.findByIdAndUpdate(id, input);
-			return persona;
-		},
-		async delPersona(obj, { id }) {
-			await Persona.deleteOne({ _id: id });
-			return {
-				message: `La persona ${id} fue eliminada`,
-			};
-		},
-	},
+	Query,
+	Mutation,
 };
 
 let apolloServer = null;
+let app;
 
 const corsOptions = {
 	origin: 'http://localhost:8090',
@@ -77,16 +44,15 @@ async function startServer() {
 	apolloServer = new ApolloServer({ typeDefs, resolvers, corsOptions });
 	await apolloServer.start();
 
-	apolloServer.applyMiddleware({ app, cors: false });
+	// apolloServer.applyMiddleware({ app, cors: false });
+	app = express();
+	app.use('/graphql', cors(), json(), expressMiddleware(apolloServer));
+	app.set('port', 8090);
+
+	// sever start
+	app.listen(app.get('port'), () => {
+		console.log(`[INFO] Servidor escuchando en el puerto: ${app.get('port')}`);
+	});
 }
 
 startServer();
-
-const app = express();
-app.use(cors());
-app.set('port', 8090);
-
-// sever start
-app.listen(app.get('port'), () => {
-	console.log(`[INFO] Servidor escuchando en el puerto: ${app.get('port')}`);
-});
