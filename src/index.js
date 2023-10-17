@@ -5,10 +5,13 @@ const { json } = require('body-parser');
 
 const { ApolloServer } = require('@apollo/server');
 const { expressMiddleware } = require('@apollo/server/express4');
+const { GraphQLScalarType, Kind } = require('graphql');
 
 const cors = require('cors');
 
-const { typeDefsPersona, QueryPersona, MutationPersona } = require('./schema/persona');
+const { typeDefsUsuario, QueryUsuario, MutationUsuario } = require('./schema/usuario');
+const { typeDefsInventario, QueryInventario, MutationInventario } = require('./schema/inventario');
+const { typeDefsTicket, QueryTicket, MutationTicket } = require('./schema/ticket');
 
 mongoose.connect(process.env.MONGODB_CONN_STRING, {
 	useNewUrlParser: true,
@@ -17,17 +20,34 @@ mongoose.connect(process.env.MONGODB_CONN_STRING, {
 
 let typeDefs = ``;
 
-typeDefs += typeDefsPersona;
+typeDefs += typeDefsUsuario + '\n' + typeDefsInventario + '\n' + typeDefsTicket;
 
-let Query = {};
+const dateScalar = new GraphQLScalarType({
+	name: 'Date',
+	serialize(value) {
+		return value.getTime();
+	},
+	parseValue(value) {
+		return new Date(value);
+	},
+	parseLiteral(ast) {
+		if (ast.kind === Kind.INT) {
+			return new Date(parseInt(ast.value, 10));
+		}
+		return null;
+	},
+});
 
-Query = { ...Query, ...QueryPersona };
+const Query = { ...QueryUsuario, ...QueryInventario, ...QueryTicket };
 
-let Mutation = {};
-
-Mutation = { ...Mutation, ...MutationPersona };
+const Mutation = {
+	...MutationUsuario,
+	...MutationInventario,
+	...MutationTicket,
+};
 
 const resolvers = {
+	Date: dateScalar,
 	Query,
 	Mutation,
 };
