@@ -21,8 +21,12 @@ const typeDefsInventario = `
     type Alert{
         message: String
     }
+    type InventarioPag {
+        productos: [Inventario]
+        totalProductos: Int
+    }
     type Query{
-        getInventario(page: Int, limit: Int = 1): [Inventario]
+        getInventario(page: Int, limit: Int = 1, search: String, tipoFilter: [String], estadoFilter: [String], cantidadFilter: [String]): InventarioPag
         getProducto(id: ID): Inventario
     }
     type Mutation{
@@ -33,11 +37,44 @@ const typeDefsInventario = `
 `;
 
 const QueryInventario = {
-	async getInventario(obj, { page, limit }) {
-		const inventario = Inventario.find()
-			.skip((page - 1) * limit)
-			.limit(limit);
-		return inventario;
+	async getInventario(obj, { page, limit, search, tipoFilter, estadoFilter, cantidadFilter }) {
+		let findQuery = { nombre: { $regex: search } };
+
+		if (tipoFilter.length > 0) {
+			findQuery = { ...findQuery, categoria: { $in: tipoFilter } };
+		}
+
+		// si no hay ningun filtro de estado o se seleccionan los dos simplemente retornar todo
+		if (estadoFilter.length !== 0 && estadoFilter.length !== 2) {
+			if (estadoFilter.includes('disponible')) {
+				findQuery = { ...findQuery, disponibilidad: true };
+			}
+			if (estadoFilter.includes('no_disponible')) {
+				findQuery = { ...findQuery, disponibilidad: false };
+			}
+		}
+
+		const cantidadProductoAceptable = 3;
+
+		if (cantidadFilter.length !== 0 && cantidadFilter.length !== 2) {
+			if (cantidadFilter.includes('cantidad_baja')) {
+				findQuery = { ...findQuery, cantidad: { $lt: cantidadProductoAceptable } };
+			}
+			if (cantidadFilter.includes('cantidad_alta')) {
+				findQuery = { ...findQuery, cantidad: { $gte: cantidadProductoAceptable } };
+			}
+		}
+
+		const [productos, totalProductos] = await Promise.all([
+			Inventario.find(findQuery)
+				.skip((page - 1) * limit)
+				.limit(limit),
+			Inventario.countDocuments(findQuery),
+		]);
+		return {
+			productos,
+			totalProductos,
+		};
 	},
 	async getProducto(obj, { id }) {
 		const producto = await Inventario.findById(id);
