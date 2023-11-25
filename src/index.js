@@ -66,6 +66,7 @@ async function startServer() {
 
 	// apolloServer.applyMiddleware({ app, cors: false });
 	app = express();
+	app.use(express.json({ limit: '5mb' }));
 	app.use('/graphql', cors(), json(), expressMiddleware(apolloServer));
 	app.set('port', 8090);
 
