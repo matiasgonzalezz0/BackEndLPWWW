@@ -30,6 +30,10 @@ const typeDefsUsuario = `
 	type Alert {
 		message: String
 	}
+	type UsuarioPag {
+        usuarios: [Usuario]
+        totalUsuarios: Int
+    }
 	type Query {
 		getUsuarios(page: Int, limit: Int = 1): [Usuario]
 		getUsuario(id: ID): Usuario
@@ -43,10 +47,16 @@ const typeDefsUsuario = `
 
 const QueryUsuario = {
 	async getUsuarios(obj, { page, limit }) {
-		const usuarios = await Usuario.find()
-			.skip((page - 1) * limit)
-			.limit(limit);
-		return usuarios;
+		const [usuarios, totalUsuarios] = await Promise.all([
+			Usuario.find()
+				.skip((page - 1) * limit)
+				.limit(limit),
+			Usuario.countDocuments(),
+		]);
+		return {
+			usuarios,
+			totalUsuarios,
+		};
 	},
 	async getUsuario(obj, { id }) {
 		const usuario = await Usuario.findById(id);
