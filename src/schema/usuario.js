@@ -148,11 +148,10 @@ const MutationUsuario = {
 		const usuario = await Usuario.findByIdAndUpdate(id, { disponibilidad: false });
 		return usuario;
 	},
-	async updPass(obj, { id, contrasena, nuevaContrasena }) {
-		const usuario = await Usuario.findByIdAndUpdate(
-			id,
+	async updPass(obj, { rut, contrasena, nuevaContrasena }) {
+		const usuario = await Usuario.findOneAndUpdate(
+			{ rut, contrasena },
 			{ contrasena: nuevaContrasena },
-			{ new: true },
 		);
 		return usuario;
 	},
