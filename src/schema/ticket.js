@@ -39,8 +39,12 @@ const typeDefsTicket = `
 `;
 
 const QueryTicket = {
-	async getTickets(obj, { page, limit }) {
-		const tickets = await Ticket.find()
+	async getTickets(obj, { page, limit, tipoFilter }) {
+        const findQuery = {};
+        if (tipoFilter !== undefined) {
+            findQuery.estadoPrestamo = tipoFilter;
+        }
+		const tickets = await Ticket.find(findQuery)
 			.populate('producto')
 			.populate('ticketEspecial')
 			.skip((page - 1) * limit)
