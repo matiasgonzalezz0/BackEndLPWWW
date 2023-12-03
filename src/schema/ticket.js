@@ -1,5 +1,6 @@
 const Ticket = require('../models/ticket');
 const TicketEspecial = require('../models/ticketEspecial');
+const Inventario = require('../models/inventario');
 
 const typeDefsTicket = `
     scalar Date
@@ -34,12 +35,41 @@ const typeDefsTicket = `
     type Query {
         getTickets(page: Int, limit: Int = 1, ticketFilter: [String], rutUsuario: String) : TicketPag
         getTicket(id: ID) : Ticket
+		getAllTickets: [Ticket]
     }
     type Mutation {
         addTicket(input: TicketInput) : Ticket
         updTicket(id: ID, input: TicketInput) : Ticket
     }
 `;
+
+/*
+<option value='esperando'>Esperando entrega</option>
+<option value='entregado'>Entregado al usuario</option>
+<option value='devuelto'>Producto devuelto</option>
+*/
+
+const HandleCantidadChange = (prevState, currentState) => {
+	if (prevState === currentState) return 0;
+
+	if (currentState === 'esperando') {
+		if (prevState === 'entregado') {
+			return 1;
+		}
+		return 0;
+	}
+
+	if (currentState === 'entregado') {
+		return -1;
+	}
+
+	if (currentState === 'devuelto') {
+		if (prevState === 'entregado') {
+			return 1;
+		}
+		return 0;
+	}
+};
 
 const QueryTicket = {
 	async getTickets(obj, { page, limit, ticketFilter, rutUsuario }) {
@@ -73,6 +103,14 @@ const QueryTicket = {
 		const ticket = await Ticket.findById(id).populate('producto').populate('ticketEspecial');
 		return ticket;
 	},
+	getAllTickets: async () => {
+		try {
+			const tickets = await Ticket.find().populate('producto').populate('ticketEspecial');
+			return tickets;
+		} catch (error) {
+			throw new Error(error.message);
+		}
+	},
 };
 
 const MutationTicket = {
@@ -83,22 +121,35 @@ const MutationTicket = {
 			await ticketEspecial.save();
 			ticketObj = { ...ticketObj, ticketEspecial: ticketEspecial._id };
 		}
+
 		const ticket = new Ticket(ticketObj);
 
-		await ticket.save();
+		await Promise.all([
+			Inventario.findByIdAndUpdate(input.producto, {
+				$inc: { cantidad: HandleCantidadChange('', input.estadoPrestamo) },
+			}),
+			ticket.save(),
+		]);
 
 		return ticket;
 	},
 	async updTicket(obj, { id, input }) {
-		if (input.fechaTermino !== undefined) {
-			const ticketDB = await Ticket.findById(id);
+		const ticketDB = await Ticket.findById(id);
 
+		if (input.fechaTermino !== undefined) {
 			await TicketEspecial.findByIdAndUpdate(ticketDB.ticketEspecial, {
 				fechaTermino: input.fechaTermino,
 			});
 		}
 
-		const ticket = await Ticket.findByIdAndUpdate(id, input);
+		// eslint-disable-next-line no-unused-vars
+		const [_, ticket] = await Promise.all([
+			Inventario.findByIdAndUpdate(input.producto, {
+				$inc: { cantidad: HandleCantidadChange(ticketDB.estadoPrestamo, input.estadoPrestamo) },
+			}),
+			Ticket.findByIdAndUpdate(id, input),
+		]);
+
 		return ticket;
 	},
 };
