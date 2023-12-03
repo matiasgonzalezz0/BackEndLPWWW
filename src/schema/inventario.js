@@ -28,6 +28,7 @@ const typeDefsInventario = `
     type Query{
         getInventario(page: Int, limit: Int = 1, search: String, tipoFilter: [String], estadoFilter: [String], cantidadFilter: [String]): InventarioPag
         getProducto(id: ID): Inventario
+		getAllProductos: [Inventario]
     }
     type Mutation{
         addProducto(input: InventarioInput): Inventario
@@ -78,6 +79,10 @@ const QueryInventario = {
 	},
 	async getProducto(obj, { id }) {
 		const producto = await Inventario.findById(id);
+		return producto;
+	},
+	async getAllProductos(obj) {
+		const producto = await Inventario.find();
 		return producto;
 	},
 };

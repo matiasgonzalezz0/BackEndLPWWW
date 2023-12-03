@@ -50,6 +50,7 @@ const typeDefsUsuario = `
 			morosoFilter: [String]
 			bloqueadoFilter: [String]
 		): UsuarioPag
+		getAllUsers: [Usuario]
 		getUsuario(id: ID): Usuario
 		loginUsuario(rut: String, contrasena: String): TipoUsuario
 	}
@@ -118,6 +119,10 @@ const QueryUsuario = {
 			usuarios,
 			totalUsuarios,
 		};
+	},
+	async getAllUsers(obj) {
+		const usuarios = await Usuario.find();
+		return usuarios;
 	},
 	async getUsuario(obj, { id }) {
 		const usuario = await Usuario.findById(id);

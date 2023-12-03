@@ -64,7 +64,6 @@ async function startServer() {
 	apolloServer = new ApolloServer({ typeDefs, resolvers, corsOptions });
 	await apolloServer.start();
 
-	// apolloServer.applyMiddleware({ app, cors: false });
 	app = express();
 	app.use(express.json({ limit: '5mb' }));
 	app.use('/graphql', cors(), json(), expressMiddleware(apolloServer));
